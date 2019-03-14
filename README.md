@@ -8,16 +8,21 @@ build a static web site on [Netlify]'s build server you'll find that
 the initial download and build of the dependencies takes more than the
 half-hour time limit provided by their build container.
 
-In some circumstances you'd just use stack's ["Docker integration"],
+In some circumstances you'd just use Stack's ["Docker integration"],
 but that doesn't work when you're already in a Docker container.
 
-This repo is intended to provide: the `stack` binary and pre-installed
-GHC plus pre-built packages for a particular stack resolver (e.g.
-`lts-12.26`) and application. With this you can make this repo a [Git
-submodule] and, with a little bit of configuration (basically, setting
-[`$STACK_ROOT`] and possibly adding this repo's `.local/bin/` to
-`$PATH`) greatly reduce the amount of build work the build container
-needs to do.
+This repo is intended to help you build a Stack environment for a
+particular application, package it so it can be uploaded to a service
+suitable for hosting large files, and download it in your build
+container to pre-load Stack's build cache so your build in that
+container is faster. After the first build you may want to use your
+build provider's caching mechanism from that point on; this can also
+help with that.
+
+The main trick used here is to set [`$STACK_ROOT`] to an appropriate
+location for the build provider (ideally one that it will cache) and,
+if that location is empty, download and install the pre-built Stack
+build cache there.
 
 
 Stack Versions

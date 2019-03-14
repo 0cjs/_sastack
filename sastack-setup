@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+#
+#   sastack-setup - configure and print environment for sastack use
+#
+#   This must be executed as `eval $(.../setup-sastack)` so that the
+#   parent environment executes the commands this prints to set up
+#   the environment.
+#
+
+eecho()     { echo 1>&2 "$@"; }
+die()       { local exitcode="$1"; shift; echo 1>&2 "$@"; exit $exitcode; }
+setarg()    {
+    local option="$1" optarg="$2"
+    [[ -z $2 ]]  && die 2 "Error: option $1 needs a following argument"
+    echo "$2"
+}
+
+setup_sastack() {
+    local sastack="$basedir/_sastack/"
+    local sabin="$sastack/.local/bin"
+    #   We always use stack from and install it to ~/.local/bin
+    local localbin=~/.local/bin
+    #   If this doesn't already exist, our pre-built Stack
+    #   is not installed correctly.
+    [[ -x $sabin/stack ]] \
+        || die 1 "Stand-alone _sastack/ not availble or incorrectly built"
+    export STACK_ROOT="$sastack/.stack"
+    export PATH="$sabin:$PATH"
+}
+
+
+####################################################################
+#   Parse arguments and environment
+
+preload=''
+builddir=''
+while [[ ${#@} -gt 0 ]]; do case "$1" in
+    -b)     shift; builddir="$(pwd -P)/$(setarg -b "$1")"; shift;;
+    -p)     shift; preload="$(setarg -p "$1")"; shift;;
+    *)      die 2 "Error: unknown option: $1";;
+esac; done
+[[ ${#@} -eq 0 ]] || die 2 "Error: extra arguments:" "$@"
+
+#   If $NETLIFY_IMAGES_CDN_DOMAIN is set, we are probably on Netlify:
+#   put Stack where it will be cached and and preload if that's empty.
+[[ -z $builddir && -n $NETLIFY_IMAGES_CDN_DOMAIN ]] && {
+    preload=XXX
+    builddir=/opt/build/cache/stack
+}
+
+####################################################################
+#   Main
+
+if [[ $builddir ]]; then
+    export STACK_ROOT="$buildddir"
+    echo "export STACK_ROOT=\"$builddir\";"
+fi
+if [[ $preload ]]; then
+    eecho "ERROR: preload=$preload WRITEME!"
+    echo "exit 99;"
+fi
+
+#   Ensure we're using stack from ~/.local/bin ahead of everything else
+#   and, if we don't have stack installed, install it there, being careful
+#   to avoid writing anything to stout (which caller would execute).
+stackbin=~/.local/bin
+mkdir -p "$stackbin"
+export PATH="$stackbin:$PATH"
+stack --version 2>/dev/null 1>&2 || {
+    eecho "Installing stack to $stackbin/"
+    eecho "This may need to sudo to install additional OS packages."
+    curl -sSL https://get.haskellstack.org/ | sh -s - -d "$stackbin" 1>&2
+}
