@@ -1,3 +1,2 @@
-.stack-work/
-hspackage.cabal
-*~
+/.stack-work/
+/hspackage.cabal
