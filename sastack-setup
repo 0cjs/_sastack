@@ -6,6 +6,11 @@
 #   parent environment executes the commands this prints to set up
 #   the environment.
 #
+#   WARNING: All code below must be _very_ careful never to produce
+#   output on stdout as the caller would attempt to execute it.
+#   Use `1>&2` redirections where there's any chance of a program
+#   writing to stdout.
+#
 
 eecho()     { echo 1>&2 "$@"; }
 die()       { local exitcode="$1"; shift; echo 1>&2 "$@"; exit $exitcode; }
@@ -32,11 +37,13 @@ setup_sastack() {
 ####################################################################
 #   Parse arguments and environment
 
-preload=''
 builddir=''
+preload=''
+preloadgen=''
 while [[ ${#@} -gt 0 ]]; do case "$1" in
     -b)     shift; builddir="$(setarg -b "$1")"; shift;;
     -p)     shift; preload="$(setarg -p "$1")"; shift;;
+    -P)     shift; preloadgen="$(setarg -p "$1")"; shift;;
     *)      die 2 "Error: unknown option: $1";;
 esac; done
 [[ ${#@} -eq 0 ]] || die 2 "Error: extra arguments:" "$@"
@@ -47,31 +54,45 @@ esac; done
     preload=XXX
     builddir=/opt/build/cache/stack
 }
-[[ -n $builddir ]] && {
-    mkdir -p "$builddir" || die 1 "Cannot create builddir $builddir"
-    builddir=$(cd "$builddir" && pwd -P)    # Ensure absolute path
-}
 
 ####################################################################
 #   Main
 
-if [[ $builddir ]]; then
-    export STACK_ROOT="$buildddir"
+#   Setup and preload builddir if necessary.
+[[ -n $builddir ]] && {
+    mkdir -p "$builddir" || die 1 "Cannot create builddir $builddir"
+    builddir=$(cd "$builddir" && pwd -P)    # Ensure absolute path
+    [[ -w $builddir ]] || die 1 "Cannot write builddir $builddir"
+    export STACK_ROOT="$builddir"
     echo "export STACK_ROOT=\"$builddir\";"
-fi
-if [[ $preload ]]; then
-    eecho "ERROR: preload=$preload WRITEME!"
-    echo "exit 99;"
-fi
 
-#   Ensure we're using stack from ~/.local/bin ahead of everything else
-#   and, if we don't have stack installed, install it there, being careful
-#   to avoid writing anything to stout (which caller would execute).
-stackbin=~/.local/bin
-mkdir -p "$stackbin"
-export PATH="$stackbin:$PATH"
-stack --version 2>/dev/null 1>&2 || {
-    eecho "Installing stack to $stackbin/"
-    eecho "This may need to sudo to install additional OS packages."
-    curl -sSL https://get.haskellstack.org/ | sh -s - -d "$stackbin" 1>&2
+    [[ -n $preload ]] && {
+        eecho "WRITEME! preload=$preload"
+        echo "exit 99;"
+    }
 }
+
+if [[ -n $preloadgen ]]; then
+    #   Generate the preload
+    [[ -z $builddir ]] && die 2 "Cannot use -P without -b"
+    preloadgenfile="$preloadgen.tar.bz2"
+    preloadgenfile="$preloadgen.tar.gz"
+    eecho "Generating preload: $preloadgenfile"
+    tar -C "$builddir" -caf "$preloadgenfile" .
+    ls -l "$preloadgenfile" 1>&2
+else
+    #   Install stack to ~/.local/bin/ and put that at front of $PATH.
+    #   (We don't bother trying to use stack from elsewhere because it
+    #   may be an old version that we can't upgrade.)
+    stackbin=~/.local/bin
+    mkdir -p "$stackbin"
+    export PATH="$stackbin:$PATH"
+    echo "export PATH=\"$stackbin:$PATH\";"
+    if [[ -x $stackbin/stack ]]; then
+        stack upgrade 1>&2
+    else
+        eecho "Installing stack to $stackbin/"
+        eecho "This may need to sudo to install additional OS packages."
+        curl -sSL https://get.haskellstack.org/ | sh -s - -d "$stackbin" 1>&2
+    fi
+fi
