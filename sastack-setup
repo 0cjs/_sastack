@@ -35,7 +35,7 @@ setup_sastack() {
 preload=''
 builddir=''
 while [[ ${#@} -gt 0 ]]; do case "$1" in
-    -b)     shift; builddir="$(pwd -P)/$(setarg -b "$1")"; shift;;
+    -b)     shift; builddir="$(setarg -b "$1")"; shift;;
     -p)     shift; preload="$(setarg -p "$1")"; shift;;
     *)      die 2 "Error: unknown option: $1";;
 esac; done
@@ -46,6 +46,10 @@ esac; done
 [[ -z $builddir && -n $NETLIFY_IMAGES_CDN_DOMAIN ]] && {
     preload=XXX
     builddir=/opt/build/cache/stack
+}
+[[ -n $builddir ]] && {
+    mkdir -p "$builddir" || die 1 "Cannot create builddir $builddir"
+    builddir=$(cd "$builddir" && pwd -P)    # Ensure absolute path
 }
 
 ####################################################################
