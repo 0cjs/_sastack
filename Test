@@ -47,7 +47,7 @@ preload_file=.build/preload.tar     # No compression is _much_ faster
 preload_url="file://$basedir/$preload_file"
 
 ____ 'Build with preload (this should be fast)'
-rm -rf "$stackroot"
+rm -rf "$stackroot" "$testpkg/.stack-work"
 eval $("$basedir/sastack-setup" -b "$stackroot" -p "$preload_url")
 #   XXX check here for files under "$stackroot" again
 #   `TIMEFORMAT=... time ...` doesn't work.
