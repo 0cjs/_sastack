@@ -69,8 +69,10 @@ esac; done
     echo "export STACK_ROOT=\"$builddir\";"
 
     [[ -n $preload ]] && {
-        eecho "WRITEME! preload=$preload"
-        echo "exit 99;"
+        eecho "Preloading $preload"
+        curl -sS "$preload" | tar -C "$builddir" -xf - \
+            || die 3 "Preload failed."
+        #   XXX should better catch errors here
     }
 }
 
