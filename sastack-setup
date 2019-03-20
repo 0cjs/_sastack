@@ -39,11 +39,11 @@ setup_sastack() {
 
 builddir=''
 preload=''
-preloadgen=''
+preload_file=''
 while [[ ${#@} -gt 0 ]]; do case "$1" in
     -b)     shift; builddir="$(setarg -b "$1")"; shift;;
     -p)     shift; preload="$(setarg -p "$1")"; shift;;
-    -P)     shift; preloadgen="$(setarg -p "$1")"; shift;;
+    -P)     shift; preload_file="$(setarg -p "$1")"; shift;;
     *)      die 2 "Error: unknown option: $1";;
 esac; done
 [[ ${#@} -eq 0 ]] || die 2 "Error: extra arguments:" "$@"
@@ -72,14 +72,13 @@ esac; done
     }
 }
 
-if [[ -n $preloadgen ]]; then
+if [[ -n $preload_file ]]; then
     #   Generate the preload
     [[ -z $builddir ]] && die 2 "Cannot use -P without -b"
-    preloadgenfile="$preloadgen.tar.bz2"
-    preloadgenfile="$preloadgen.tar.gz"
-    eecho "Generating preload: $preloadgenfile"
-    tar -C "$builddir" -caf "$preloadgenfile" .
-    ls -l "$preloadgenfile" 1>&2
+    eecho "Generating preload: $preload_file"
+    tar -C "$builddir" -caf "$preload_file" .
+    ls -lh "$preload_file" 1>&2
+    file "$preload_file"
 else
     #   Install stack to ~/.local/bin/ and put that at front of $PATH.
     #   (We don't bother trying to use stack from elsewhere because it
