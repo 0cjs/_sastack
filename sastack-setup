@@ -37,6 +37,8 @@ setup_sastack() {
 ####################################################################
 #   Parse arguments and environment
 
+export XZ_DEFAULTS; : ${XZ_DEFAULTS=--threads=0 -v}
+
 builddir=''
 preload=''
 preload_file=''
