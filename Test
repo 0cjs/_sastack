@@ -7,6 +7,7 @@ ____() { echo 1>&2 '========= Test:' "$@"; }
 
 basedir=$(cd "$(dirname "$0")" && pwd -P)
 testpkg="$basedir/hspackage"
+stackroot="$basedir/.build/stackroot"
 cd "$basedir"
 
 if [[ $1 == --no-clean ]]; then
@@ -23,15 +24,15 @@ echo 1>&2 "HOME=$HOME"
 
 ____ 'sastack-setup: stack install (if clean) and -b absolute path'
 unset STACK_ROOT
-"$basedir/sastack-setup" -b "$basedir/.build/stackroot"
-eval $("$basedir/sastack-setup" -b "$basedir/.build/stackroot" 2>/dev/null)
-[[ $STACK_ROOT = $basedir/.build/stackroot ]] || die "STACK_ROOT=$STACK_ROOT"
+"$basedir/sastack-setup" -b "$stackroot"
+eval $("$basedir/sastack-setup" -b "$stackroot" 2>/dev/null)
+[[ $STACK_ROOT = $stackroot ]] || die "STACK_ROOT=$STACK_ROOT"
 
 ____ 'sastack-setup: stack upgrade and -b relative path'
 unset STACK_ROOT
 "$basedir/sastack-setup" -b .build/stackroot
 eval $("$basedir/sastack-setup" -b .build/stackroot 2>/dev/null)
-[[ $STACK_ROOT = $basedir/.build/stackroot ]] || die "STACK_ROOT=$STACK_ROOT"
+[[ $STACK_ROOT = $stackroot ]] || die "STACK_ROOT=$STACK_ROOT"
 
 ____ 'Initial build (slow without --no-clean)'
 (cd "$testpkg" && stack build)
@@ -40,16 +41,17 @@ ____ 'Initial build (slow without --no-clean)'
 
 ____ 'Creating preload'
 unset STACK_ROOT
-preload_file=.build/preload.tar
-"$basedir/sastack-setup" -b .build/stackroot -P $preload_file
+preload_file=.build/preload.tar     # No compression is _much_ faster
+"$basedir/sastack-setup" -b "$stackroot" -P $preload_file
 [[ -r $preload_file ]] || die "Cannot read $preload_file"
 preload_url="file://$basedir/$preload_file"
 
-____ 'Build with preload'
-rm -rf .build/stackroot
-eval $("$basedir/sastack-setup" -b .build/stackroot -p "$preload_url")
-#   XXX check here for files under .build/stackroot again
-
-exit 99
+____ 'Build with preload (this should be fast)'
+rm -rf "$stackroot"
+eval $("$basedir/sastack-setup" -b "$stackroot" -p "$preload_url")
+#   XXX check here for files under "$stackroot" again
+#   `TIMEFORMAT=... time ...` doesn't work.
+export TIMEFORMAT='%R user=%U sys=%S cpu=%P%%'
+(cd "$testpkg" && time stack build)
 
 trap '' 0
